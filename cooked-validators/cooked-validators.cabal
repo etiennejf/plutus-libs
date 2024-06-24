@@ -24,6 +24,8 @@ library
       Cooked.Ltl
       Cooked.MockChain
       Cooked.MockChain.Constraints
+      Cooked.MockChain.Fee
+      Cooked.MockChain.Fees
       Cooked.MockChain.Monad
       Cooked.MockChain.Monad.Contract
       Cooked.MockChain.Monad.Direct
@@ -51,10 +53,19 @@ library
   build-depends:
       QuickCheck
     , aeson
+    , array
     , base >=4.9 && <5
     , bytestring
-    , cardano-api
+    , cardano-api >=1.35.3
+    , cardano-binary
     , cardano-crypto
+    , cardano-ledger-alonzo
+    , cardano-ledger-babbage
+    , cardano-ledger-byron
+    , cardano-ledger-core
+    , cardano-ledger-shelley
+    , cardano-ledger-shelley-ma
+    , cardano-slotting
     , cardano-wallet-core
     , containers
     , data-default
@@ -69,6 +80,7 @@ library
     , monad-control
     , mtl
     , optics-core
+    , ouroboros-consensus
     , plutus-contract
     , plutus-core
     , plutus-ledger
@@ -81,6 +93,7 @@ library
     , prettyprinter
     , scientific
     , streaming
+    , strict-containers
     , tasty
     , tasty-hunit
     , tasty-quickcheck
@@ -115,10 +128,19 @@ test-suite spec
   build-depends:
       QuickCheck
     , aeson
+    , array
     , base >=4.9 && <5
     , bytestring
-    , cardano-api
+    , cardano-api >=1.35.3
+    , cardano-binary
     , cardano-crypto
+    , cardano-ledger-alonzo
+    , cardano-ledger-babbage
+    , cardano-ledger-byron
+    , cardano-ledger-core
+    , cardano-ledger-shelley
+    , cardano-ledger-shelley-ma
+    , cardano-slotting
     , cardano-wallet-core
     , containers
     , cooked-validators
@@ -134,6 +156,7 @@ test-suite spec
     , monad-control
     , mtl
     , optics-core
+    , ouroboros-consensus
     , plutus-contract
     , plutus-core
     , plutus-ledger
@@ -146,6 +169,7 @@ test-suite spec
     , prettyprinter
     , scientific
     , streaming
+    , strict-containers
     , tasty
     , tasty-hunit
     , tasty-quickcheck

@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
@@ -14,12 +15,15 @@
 
 module Cooked.MockChain.Monad.Direct where
 
-import qualified Cardano.Api.Shelley as C
+import Cardano.Api
+import Cardano.Api.Shelley qualified as C
+import Cardano.Ledger.Core
 import Control.Applicative
 import Control.Lens hiding (ix)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State.Strict
+import Cooked.MockChain.Fee qualified as CookedFee
 import Cooked.MockChain.Monad
 import Cooked.MockChain.UtxoPredicate
 import Cooked.MockChain.UtxoState
@@ -30,28 +34,28 @@ import Data.Bifunctor (Bifunctor (first, second))
 import Data.Default
 import Data.Foldable (asum)
 import Data.Function (on)
-import qualified Data.List as L
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
+import Data.List qualified as L
+import Data.List.NonEmpty qualified as NE
+import Data.Map.Strict qualified as M
 import Data.Maybe (catMaybes, mapMaybe)
-import qualified Data.Set as S
+import Data.Set qualified as S
 import Data.Void
-import qualified Ledger as Pl
-import qualified Ledger.Ada as Ada
-import qualified Ledger.Constraints as Pl
-import qualified Ledger.Constraints.OffChain as Pl
-import qualified Ledger.Credential as Pl
-import qualified Ledger.Fee as Pl
+import Ledger (Params (pProtocolParams))
+import Ledger qualified as Pl
+import Ledger.Ada qualified as Ada
+import Ledger.Constraints qualified as Pl
+import Ledger.Constraints.OffChain qualified as Pl
+import Ledger.Credential qualified as Pl
 import Ledger.Orphans ()
-import qualified Ledger.TimeSlot as Pl
-import qualified Ledger.Tx.CardanoAPI.Internal as Pl
-import qualified Ledger.Validation as Pl
-import qualified Ledger.Value as Pl
-import qualified Plutus.V1.Ledger.Api as PV1
-import qualified PlutusTx as Pl
-import qualified PlutusTx.Lattice as PlutusTx
-import qualified PlutusTx.Numeric as Pl
-import qualified PlutusTx.Ratio as R
+import Ledger.TimeSlot qualified as Pl
+import Ledger.Tx.CardanoAPI.Internal qualified as Pl
+import Ledger.Validation qualified as Pl
+import Ledger.Value qualified as Pl
+import Plutus.V1.Ledger.Api qualified as PV1
+import PlutusTx qualified as Pl
+import PlutusTx.Lattice qualified as PlutusTx
+import PlutusTx.Numeric qualified as Pl
+import PlutusTx.Ratio qualified as R
 
 -- * Direct Emulation
 
@@ -115,12 +119,16 @@ data BalanceStage
 
 data MockChainEnv = MockChainEnv
   { mceParams :: Pl.Params,
+    mcePParams :: PParams (C.ShelleyLedgerEra C.BabbageEra),
     mceSigners :: NE.NonEmpty Wallet
   }
   deriving (Show)
 
 instance Default MockChainEnv where
-  def = MockChainEnv def (wallet 1 NE.:| [])
+  def = MockChainEnv ledgerParams pparams (wallet 1 NE.:| [])
+    where
+      ledgerParams = def
+      pparams = toLedgerPParams ShelleyBasedEraBabbage (pProtocolParams ledgerParams)
 
 -- | The actual 'MockChainT' is a trivial combination of 'StateT' and 'ExceptT'
 newtype MockChainT m a = MockChainT
@@ -468,7 +476,8 @@ setFeeAndValidRange bPol w (Pl.UnbalancedEmulatorTx tx0 reqSigs0 uindex) = do
     calcFee n fee reqSigs cUtxoIndex lparams tx = do
       let tx1 = tx {Pl.txFee = fee}
       attemptedTx <- balanceTxFromAux lparams bPol BalCalcFee w tx1
-      case Pl.estimateTransactionFee lparams cUtxoIndex reqSigs attemptedTx of
+      pparams <- asks mcePParams
+      case CookedFee.estimateTransactionFeePParams pparams lparams cUtxoIndex reqSigs attemptedTx of
         -- necessary to capture script failure for failed cases
         Left (Left err@(Pl.Phase2, Pl.ScriptFailure _)) -> throwError $ MCEValidationError err
         Left err -> throwError $ FailWith $ "calcFee: " ++ show err
